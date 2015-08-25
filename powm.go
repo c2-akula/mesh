@@ -20,7 +20,7 @@ func toBinary(s int) []int {
 // binary powering and puts the result in
 // receiver.
 func (n *mesh) Powm(m Mesher, s int) {
-	mr, mc, _ := m.Size()
+	mr, mc := m.Size()
 	if mr != mc {
 		panic("Powm: Input mesh is not square.")
 	}
@@ -38,30 +38,30 @@ func (n *mesh) Powm(m Mesher, s int) {
 	p.Clone(m)
 	b := Gen(nil, mc, mc)
 	for sbin[i-1] == 0 {
-		b.Mul(p, p)
+		b.Mul(1, p, p)
 		p.Clone(b)
 		b.Zero()
 		i--
 	}
 	n.Clone(p)
 	for j := i - 2; j >= 0; j-- {
-		b.Mul(p, p)
+		b.Mul(1, p, p)
 		p.Clone(b)
 		if sbin[j] == 1 {
 			b.Zero()
-			b.Mul(n, p)
+			b.Mul(1, n, p)
 			n.Clone(b)
 		}
 		b.Zero()
 	}
 }
 
-// TODO: Implement the Pade Approximation method, and scrap the one below.
-
-// TODO: correct this implementation
+// Expm computes the exponential of a square mesh
+// using the scaling and squaring method in conjunction
+// with the taylor series.
 func (n *mesh) Expm(m Mesher) {
-	mr, mc, _ := m.Size()
-	nr, nc, _ := n.Size()
+	mr, mc := m.Size()
+	nr, nc := n.Size()
 	eye := I(mc)
 
 	n.Clone(eye)
@@ -92,7 +92,7 @@ func (n *mesh) Expm(m Mesher) {
 		fac *= i
 		m_exp.Powm(m_scaled, int(i))
 		m_exp.Scale(1 / fac)
-		n.Sum(1, n, m_exp) // I + (A + A2/2 + A3/3! + A4/4! + ...)
+		n.Sum(1, 1, n, m_exp) // I + (A + A2/2 + A3/3! + A4/4! + ...)
 	}
 
 	// Squaring part:

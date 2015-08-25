@@ -1,9 +1,6 @@
 package mesh
 
-import (
-	"github.com/vec"
-	"math"
-)
+import "math"
 
 type (
 	// LU Solver
@@ -12,35 +9,35 @@ type (
 		U(LU Mesher)
 		LU(mutate []int, L, U Mesher)
 		Solve(A, B Mesher)
-		SolveLy(b vec.Vectorer)
-		SolveUx(b vec.Vectorer)
+		SolveLy(b []float64)
+		SolveUx(b []float64)
 	}
 )
 
 // Solve Ly = b for y, replace b with solution
 // column oriented forward substitution
-func (L mesh) SolveLy(b vec.Vectorer) {
+func (L mesh) SolveLy(b []float64) {
 	n := L.c
 	for j := 0; j < n-1; j++ {
-		b.SetAt(j, b.GetAt(j)/L.GetAtNode(j, j))
+		b[j] /= L.Get(j, j)
 		for k := j + 1; k < n; k++ {
-			b.SetAt(k, b.GetAt(k)-b.GetAt(j)*L.GetAtNode(k, j))
+			b[k] -= b[j] * L.Get(k, j)
 		}
 	}
-	b.SetAt(n-1, b.GetAt(n-1)/L.GetAtNode(n-1, n-1))
+	b[n-1] /= L.Get(n-1, n-1)
 }
 
 // Solve Ux = y, replace b with solution
 // column oriented backward substitution
-func (U mesh) SolveUx(y vec.Vectorer) {
+func (U mesh) SolveUx(y []float64) {
 	n := U.c
 	for j := n - 1; j >= 1; j-- {
-		y.SetAt(j, y.GetAt(j)/U.GetAtNode(j, j))
+		y[j] /= U.Get(j, j)
 		for k := 0; k < j; k++ {
-			y.SetAt(k, y.GetAt(k)-y.GetAt(j)*U.GetAtNode(k, j))
+			y[k] -= y[j] * U.Get(k, j)
 		}
 	}
-	y.SetAt(0, y.GetAt(0)/U.GetAtNode(0, 0))
+	y[0] /= U.Get(0, 0)
 }
 
 // http://ezekiel.vancouver.wsu.edu/~cs330/lectures/linear_algebra/LU.pdf
@@ -54,28 +51,28 @@ func (A mesh) LU(mutate []int, L, U Mesher) {
 	d := 1
 	for j := 0; j < N; j++ {
 		for i := 0; i <= j; i++ {
-			aij := ACpy.GetAtNode(i, j)
+			aij := ACpy.Get(i, j)
 			sum := 0.
 			for k := 0; k <= i-1; k++ {
-				aik := ACpy.GetAtNode(i, k)
-				akj := ACpy.GetAtNode(k, j)
+				aik := ACpy.Get(i, k)
+				akj := ACpy.Get(k, j)
 				sum += aik * akj
 			}
 			aij -= sum
-			ACpy.SetAtNode(aij, i, j)
+			ACpy.Set(aij, i, j)
 		}
-		p := math.Abs(ACpy.GetAtNode(j, j))
+		p := math.Abs(ACpy.Get(j, j))
 		n := j
 		for i := j + 1; i <= N-1; i++ {
-			aij := ACpy.GetAtNode(i, j)
+			aij := ACpy.Get(i, j)
 			sum := 0.
 			for k := 0; k <= j-1; k++ {
-				aik := ACpy.GetAtNode(i, k)
-				akj := ACpy.GetAtNode(k, j)
+				aik := ACpy.Get(i, k)
+				akj := ACpy.Get(k, j)
 				sum += aik * akj
 			}
 			aij -= sum
-			ACpy.SetAtNode(aij, i, j)
+			ACpy.Set(aij, i, j)
 			if math.Abs(aij) > p {
 				p = math.Abs(aij)
 				n = i
@@ -91,25 +88,23 @@ func (A mesh) LU(mutate []int, L, U Mesher) {
 			d = -d
 		}
 		for i := j + 1; i <= N-1; i++ {
-			aij := ACpy.GetAtNode(i, j)
-			ajj := ACpy.GetAtNode(j, j)
+			aij := ACpy.Get(i, j)
+			ajj := ACpy.Get(j, j)
 			aij /= ajj
-			ACpy.SetAtNode(aij, i, j)
+			ACpy.Set(aij, i, j)
 		}
 	}
 	L.L(ACpy)
 	U.U(ACpy)
-	// A.L(L)
-	// A.U(U)
 }
 
 // L extracts Lower Triangular mesh from LU mesh
 // and puts it in receiver
 func (L *mesh) L(LU Mesher) {
-	_, N, _ := LU.Size()
+	_, N := LU.Size()
 	for j := 0; j < N; j++ {
 		for i := j + 1; i < N; i++ {
-			L.SetAtNode(LU.GetAtNode(i, j), i, j)
+			L.Set(LU.Get(i, j), i, j)
 		}
 	}
 }
@@ -117,10 +112,10 @@ func (L *mesh) L(LU Mesher) {
 // U extracts Upper Triangular mesh from LU mesh
 // and puts it in receiver
 func (U *mesh) U(LU Mesher) {
-	_, N, _ := LU.Size()
+	_, N := LU.Size()
 	for j := 0; j < N; j++ {
 		for i := 0; i <= j; i++ {
-			U.SetAtNode(LU.GetAtNode(i, j), i, j)
+			U.Set(LU.Get(i, j), i, j)
 		}
 	}
 }
@@ -132,19 +127,30 @@ func (U *mesh) U(LU Mesher) {
 	then A.R == B.R == X.R else Solve will panic
 */
 func (X *mesh) Solve(A, B Mesher) {
-	_, N, _ := A.Size()
-	br, bc, _ := B.Size()
+	_, N := A.Size()
+	br, bc := B.Size()
 	mut := make([]int, N, N)
-	b := vec.Zeros(br)
+	b := make([]float64, br)
 	L := I(N)
 	U := Gen(nil, N, N)
 
 	A.LU(mut, L, U)
 	for j := 0; j < bc; j++ {
 		B.GetCol(b, j)
-		b.Permute(mut)
+		permute(b, mut)
 		L.SolveLy(b)
 		U.SolveUx(b)
 		X.SetCol(b, j)
+	}
+}
+
+// Permute swaps the elements in b with
+// elements in b at mut[i] positions.
+// mut vector contains a list of positions.
+func permute(b []float64, mut []int) {
+	for k := 0; k < len(b); k++ {
+		if k != mut[k] && mut[k] != 0 {
+			b[k], b[mut[k]] = b[mut[k]], b[k]
+		}
 	}
 }

@@ -38,7 +38,7 @@ type SVDer interface {
 func SVD(a Mesher) SVDer {
 	var sqa Mesher
 	svd := new(svd)
-	m, n, _ := a.Size()
+	m, n := a.Size()
 	svd.m, svd.n = m, n
 	if m < n { // 6x7
 		// we will make it square by appending
@@ -74,16 +74,16 @@ func SVD(a Mesher) SVDer {
 			// compute 2-norm of k-th column without under/overflow
 			svd.s[k] = 0
 			for i := k; i < m; i++ {
-				svd.s[k] = math.Hypot(svd.s[k], sqa.GetAtNode(i, k))
+				svd.s[k] = math.Hypot(svd.s[k], sqa.Get(i, k))
 			}
 			if svd.s[k] != 0.0 {
-				if sqa.GetAtNode(k, k) < 0.0 {
+				if sqa.Get(k, k) < 0.0 {
 					svd.s[k] = -svd.s[k]
 				}
 				for i := k; i < m; i++ {
-					sqa.SetAtNode(sqa.GetAtNode(i, k)/svd.s[k], i, k)
+					sqa.Set(sqa.Get(i, k)/svd.s[k], i, k)
 				}
-				sqa.SetAtNode(sqa.GetAtNode(k, k)+1.0, k, k)
+				sqa.Set(sqa.Get(k, k)+1.0, k, k)
 			}
 			svd.s[k] = -svd.s[k]
 		}
@@ -92,23 +92,23 @@ func SVD(a Mesher) SVDer {
 				// apply the transformation
 				t := 0.0
 				for i := k; i < m; i++ {
-					t += sqa.GetAtNode(i, k) * sqa.GetAtNode(i, j)
+					t += sqa.Get(i, k) * sqa.Get(i, j)
 				}
-				t /= -sqa.GetAtNode(k, k)
+				t /= -sqa.Get(k, k)
 				for i := k; i < m; i++ {
-					sqa.SetAtNode(sqa.GetAtNode(i, j)+t*sqa.GetAtNode(i, k), i, j)
+					sqa.Set(sqa.Get(i, j)+t*sqa.Get(i, k), i, j)
 				}
 			}
 
 			// place the kth row of A into e for the subsequent calculation of
 			// the row transformation
-			e[j] = sqa.GetAtNode(k, j)
+			e[j] = sqa.Get(k, j)
 		}
 
 		if wantu && (k < nct) {
 			// place the transformation in U for subsequent back multiplication
 			for i := k; i < m; i++ {
-				svd.u[i*n+k] = sqa.GetAtNode(i, k)
+				svd.u[i*n+k] = sqa.Get(i, k)
 			}
 		}
 
@@ -138,13 +138,13 @@ func SVD(a Mesher) SVDer {
 				}
 				for j := k + 1; j < n; j++ {
 					for i := k + 1; i < m; i++ {
-						work[i] += e[j] * sqa.GetAtNode(i, j)
+						work[i] += e[j] * sqa.Get(i, j)
 					}
 				}
 				for j := k + 1; j < n; j++ {
 					t := -e[j] / e[k+1]
 					for i := k + 1; i < m; i++ {
-						sqa.SetAtNode(sqa.GetAtNode(i, j)+t*work[i], i, j)
+						sqa.Set(sqa.Get(i, j)+t*work[i], i, j)
 					}
 				}
 			}
@@ -161,13 +161,13 @@ func SVD(a Mesher) SVDer {
 	// set up the final bidiagonal matrix of order p
 	p := int(math.Min(float64(n), float64(m+1)))
 	if nct < n {
-		svd.s[nct] = sqa.GetAtNode(nct, nct)
+		svd.s[nct] = sqa.Get(nct, nct)
 	}
 	if m < p {
 		svd.s[p-1] = 0.0
 	}
 	if nrt+1 < p {
-		e[nrt] = sqa.GetAtNode(nrt, p-1)
+		e[nrt] = sqa.Get(nrt, p-1)
 	}
 	e[p-1] = 0.0
 
@@ -456,12 +456,12 @@ func (s svd) U() (U Mesher) {
 		U = Gen(nil, s.m, s.m)
 		for i := 0; i < s.m; i++ {
 			for j := 0; j < s.m; j++ {
-				U.SetAtNode(s.u[i*s.n+j], i, j)
+				U.Set(s.u[i*s.n+j], i, j)
 			}
 		}
 	} else {
 		U = Gen(nil, s.m, s.n)
-		copy(U.Vec().Slice(), s.u)
+		copy(U.Slice(), s.u)
 	}
 	return
 }
@@ -469,7 +469,7 @@ func (s svd) U() (U Mesher) {
 // V returns the right singular values
 func (s svd) V() (V Mesher) {
 	V = Gen(nil, s.n, s.n)
-	copy(V.Vec().Slice(), s.v)
+	copy(V.Slice(), s.v)
 	return
 }
 
@@ -486,7 +486,7 @@ func (s svd) S() (S Mesher) {
 		S = Gen(nil, s.n, s.n)
 	}
 	for i := 0; i < int(math.Min(float64(s.m), float64(s.n))); i++ {
-		S.SetAtNode(s.s[i], i, i)
+		S.Set(s.s[i], i, i)
 	}
 	return
 }

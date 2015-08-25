@@ -5,7 +5,7 @@ import "math"
 // QR decomposition of the given matrix using givens rotations
 // The single givens rotations are stored within the matrix.
 func QR(A Mesher) (Q, R Mesher) {
-	m, n, _ := A.Size()
+	m, n := A.Size()
 	AC := Gen(nil, m, n)
 	AC.Clone(A)
 
@@ -13,12 +13,12 @@ func QR(A Mesher) (Q, R Mesher) {
 	// to eliminate
 	for j := 0; j < n-1; j++ {
 		for i := j + 1; i < m; i++ {
-			if AC.GetAtNode(i, j) != 0 {
-				acjj := AC.GetAtNode(j, j)
-				acij := AC.GetAtNode(i, j)
+			if AC.Get(i, j) != 0 {
+				acjj := AC.Get(j, j)
+				acij := AC.Get(i, j)
 				r := math.Sqrt(acjj*acjj + acij*acij)
 
-				if AC.GetAtNode(i, j) < 0 {
+				if AC.Get(i, j) < 0 {
 					r = -r
 				}
 
@@ -27,23 +27,23 @@ func QR(A Mesher) (Q, R Mesher) {
 
 				// apply givens rotation
 				for k := j; k < n; k++ {
-					acjk := AC.GetAtNode(j, k)
-					acik := AC.GetAtNode(i, k)
-					AC.SetAtNode(c*acjk+s*acik, j, k)
-					AC.SetAtNode(-s*acjk+c*acik, i, k)
+					acjk := AC.Get(j, k)
+					acik := AC.Get(i, k)
+					AC.Set(c*acjk+s*acik, j, k)
+					AC.Set(-s*acjk+c*acik, i, k)
 				}
 
 				// c & s can be stored in one matrix entry
 				if c == 0 {
-					AC.SetAtNode(1, i, j)
+					AC.Set(1, i, j)
 				} else if math.Abs(s) < math.Abs(c) {
 					if c < 0 {
-						AC.SetAtNode(-0.5*s, i, j)
+						AC.Set(-0.5*s, i, j)
 					} else {
-						AC.SetAtNode(0.5*s, i, j)
+						AC.Set(0.5*s, i, j)
 					}
 				} else {
-					AC.SetAtNode(2/c, i, j)
+					AC.Set(2/c, i, j)
 				}
 			}
 		}
@@ -56,7 +56,7 @@ func QR(A Mesher) (Q, R Mesher) {
 	for j := n - 1; j >= 0; j-- {
 		for i := m - 1; i > j; i-- {
 			// Get c & s stored in the i-th row, j-th col
-			acij := AC.GetAtNode(i, j)
+			acij := AC.Get(i, j)
 
 			c, s := 0., 0.
 			if acij == 0 {
@@ -73,11 +73,11 @@ func QR(A Mesher) (Q, R Mesher) {
 			}
 
 			for k := 0; k < n; k++ {
-				acjk := Q.GetAtNode(j, k)
-				acik := Q.GetAtNode(i, k)
+				acjk := Q.Get(j, k)
+				acik := Q.Get(i, k)
 
-				Q.SetAtNode(c*acjk-s*acik, j, k)
-				Q.SetAtNode(s*acjk+c*acik, i, k)
+				Q.Set(c*acjk-s*acik, j, k)
+				Q.Set(s*acjk+c*acik, i, k)
 			}
 		}
 	}
@@ -88,7 +88,7 @@ func QR(A Mesher) (Q, R Mesher) {
 
 	for i := 0; i < m; i++ {
 		for j := 0; j < i; j++ {
-			R.SetAtNode(0, i, j)
+			R.Set(0, i, j)
 		}
 	}
 
